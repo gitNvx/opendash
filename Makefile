@@ -4,6 +4,9 @@
 #
 # Requirements:
 #   macOS:  brew install sdl3 sdl3_mixer mpg123 json-c   (curl/zlib from the macOS SDK)
+#   Arch:   pacman -S sdl3 sdl3_mixer mpg123 json-c curl zlib python
+#   Debian/Ubuntu: apt install libsdl3-dev libsdl3-mixer-dev libmpg123-dev \
+#          libjson-c-dev libcurl4-openssl-dev zlib1g-dev python3 pkg-config
 #   MSYS2:  pacman -S mingw-w64-x86_64-toolchain \
 #          mingw-w64-x86_64-sdl3 \
 #          mingw-w64-x86_64-mpg123 \
@@ -22,8 +25,10 @@ else
   UNAME := $(shell uname 2>/dev/null || echo Unix)
   ifneq (,$(findstring MINGW,$(UNAME))$(findstring MSYS,$(UNAME)))
     HOST := windows      # running inside an MSYS/mingw shell from make
+  else ifeq ($(UNAME),Darwin)
+    HOST := macos
   else
-    HOST := unix
+    HOST := linux
   endif
 endif
 
@@ -50,6 +55,20 @@ ifeq ($(HOST),windows)
 	-I$(BUILDPREFIX)/include \
 	-MMD -MP
   LIBS := -L$(BUILDPREFIX)/lib -lSDL3 -lSDL3_mixer -lmpg123 -ljson-c -lcurl -lz -lm
+else ifeq ($(HOST),linux)
+  CC ?= cc
+  EXEEXT :=
+  PKGS := sdl3 sdl3-mixer libmpg123 json-c libcurl zlib
+  CFLAGS := -std=gnu11 -O2 -g -Wall \
+	-Wno-error=incompatible-pointer-types \
+	-Iplatform/sdl \
+	-Isource \
+	-Isource/utils \
+	-Ilibraries \
+	$(shell pkg-config --cflags $(PKGS)) \
+	$(CPPFLAGS) \
+	-MMD -MP
+  LIBS := $(shell pkg-config --libs $(PKGS)) -lm $(LDFLAGS)
 else
   # macOS default: Homebrew (zlib/curl come from the macOS SDK, no .pc)
   BREW := $(shell brew --prefix 2>/dev/null)
